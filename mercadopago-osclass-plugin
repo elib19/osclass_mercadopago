@@ -1,0 +1,93 @@
+<?php
+
+/*
+ * Plugin de cobrança recorrente Mercado Pago para Osclass
+ *
+ * Versão: 1.0.0
+ * Autor: Bard
+ *
+ * Este plugin permite que os usuários do Osclass criem e gerenciem assinaturas usando o Mercado Pago.
+ */
+
+// Inclui as bibliotecas necessárias
+require_once 'includes/class.osclass.php';
+require_once 'includes/class.plugin.php';
+require_once 'includes/class.payments.php';
+
+// Declara a classe do plugin
+class MercadoPagoRecurringPayments extends Plugin
+{
+    // Nome do plugin
+    public $name = 'Mercado Pago Recurring Payments';
+
+    // Versão do plugin
+    public $version = '1.0.0';
+
+    // Autor do plugin
+    public $author = 'Bard';
+
+    // Descrição do plugin
+    public $description = 'Este plugin permite que os usuários do Osclass criem e gerenciem assinaturas usando o Mercado Pago.';
+
+    // Arquivos que devem ser incluídos no plugin
+    public $required_files = array('includes/mercadopago.php');
+
+    // Função que é chamada quando o plugin é ativado
+    public function activate()
+    {
+        // Adiciona o plugin à lista de plugins ativos
+        osclass_set_preference('mercadopago_recurring_payments_enabled', '1');
+
+        // Cria a tabela de assinaturas
+        $sql = <<<SQL
+CREATE TABLE IF NOT EXISTS `osclass_mercadopago_subscriptions` (
+    `id` int(11) NOT NULL AUTO_INCREMENT,
+    `ad_id` int(11) NOT NULL,
+    `customer_id` varchar(255) NOT NULL,
+    `plan_id` varchar(255) NOT NULL,
+    `status` varchar(255) NOT NULL,
+    `start_date` datetime NOT NULL,
+    `end_date` datetime NOT NULL,
+    `next_payment_date` datetime NOT NULL,
+    `amount` decimal(10,2) NOT NULL,
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+SQL;
+        osclass_db_query($sql);
+
+        // Registra o hook que será chamado quando um anúncio for criado
+        osclass_register_hook('ad_create', array($this, 'ad_create_hook'));
+
+        // Registra o hook que será chamado quando um anúncio for atualizado
+        osclass_register_hook('ad_update', array($this, 'ad_update_hook'));
+
+        // Registra o hook que será chamado quando um anúncio for excluído
+        osclass_register_hook('ad_delete', array($this, 'ad_delete_hook'));
+
+        // Registra o hook que será chamado quando um pagamento for realizado
+        osclass_register_hook('payment_success', array($this, 'payment_success_hook'));
+
+        // Registra o hook que será chamado quando um pagamento for cancelado
+        osclass_register_hook('payment_cancel', array($this, 'payment_cancel_hook'));
+
+        // Registra o hook que será chamado quando um pagamento for reembolsado
+        osclass_register_hook('payment_refund', array($this, 'payment_refund_hook'));
+    }
+
+    // Função que é chamada quando o plugin é desativado
+    public function deactivate()
+    {
+        // Remove o plugin da lista de plugins ativos
+        osclass_set_preference('mercadopago_recurring_payments_enabled', '0');
+
+        // Remove a tabela de assinaturas
+        $sql = <<<SQL
+DROP TABLE IF EXISTS `osclass_mercadopago_subscriptions`;
+SQL;
+        osclass_db_query($sql);
+
+        // Desregistra os hooks
+        osclass_unregister_hook('ad_create', array($this, 'ad_create_hook'));
+        osclass_unregister_hook('ad_update', array($this, 'ad_update_hook'));
+        osclass_unregister_hook('ad_delete', array($this, 'ad_delete_hook'));
+        osclass_
